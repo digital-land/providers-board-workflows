@@ -1,0 +1,49 @@
+name: Automate Card Dates
+
+on:
+  project_card:
+    types: [moved]
+    projects: [your-project-id]
+    columns: [in_progress, done_this_sprint]
+
+jobs:
+  automate-card-dates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Get project card details
+        env:
+          GITHUB_TOKEN: ${{ secrets.OAUTH_TOKEN }}
+          PROJECT_ID: ${{ github.event.project_card.project_id }}
+          COLUMN_ID: ${{ github.event.project_card.column_id }}
+          CARD_ID: ${{ github.event.project_card.id }}
+        run: |
+          curl -X GET \
+          https://api.github.com/projects/${PROJECT_ID}/columns/${COLUMN_ID}/cards/${CARD_ID} \
+          -H 'Authorization: Bearer $GITHUB_TOKEN' \
+          -H 'Accept: application/json' \
+          -d ''
+
+      - name: Update card start date (In Progress)
+        if: github.event.project_card.column_id == 'in_progress_column_id'
+        env:
+          CARD_ID: ${{ github.event.project_card.id }}
+        run: |
+          curl -X PATCH \
+          https://api.github.com/projects/${PROJECT_ID}/cards/${CARD_ID} \
+          -H 'Authorization: Bearer $GITHUB_TOKEN' \
+          -H 'Accept: application/json' \
+          -d '{"note": {"body": "Automated start date: $(date)"}}'
+
+      - name: Update card end date (Done this Sprint)
+        if: github.event.project_card.column_id == 'done_this_sprint_column_id'
+        env:
+          CARD_ID: ${{ github.event.project_card.id }}
+        run: |
+          curl -X PATCH \
+          https://api.github.com/projects/${PROJECT_ID}/cards/${CARD_ID} \
+          -H 'Authorization: Bearer $GITHUB_TOKEN' \
+          -H 'Accept: application/json' \
+          -d '{"note": {"body": "Automated end date: $(date)"}}'
